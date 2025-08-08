@@ -1,5 +1,5 @@
 === MÉTRICA DE TEMPO - MAX BACC THRESHOLDS ===
-Data/Hora: 2025-08-05 14:25:51
-Tempo médio: 13.597848 segundos
+Data/Hora: 2025-08-07 22:54:29
+Tempo médio: 13.625849 segundos
 Execuções: 3
 Thresholds: tau_b=-0.0004064190600459828, tau_m=0.98, tau_u=0.0006590265510403005

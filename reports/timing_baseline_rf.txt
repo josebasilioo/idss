@@ -1,5 +1,5 @@
 === MÉTRICA DE TEMPO - BASELINE RF ===
-Data/Hora: 2025-08-05 14:26:36
-Tempo médio: 0.856168 segundos
+Data/Hora: 2025-08-07 22:55:12
+Tempo médio: 0.758824 segundos
 Execuções: 3
 Threshold: 0.43
