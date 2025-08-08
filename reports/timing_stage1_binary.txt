@@ -1,0 +1,4 @@
+=== MÉTRICA DE TEMPO - STAGE 1 BINARY DETECTION ===
+Data/Hora: 2025-08-08 01:55:31
+Tempo médio: 0.020995 segundos
+Execuções: 3

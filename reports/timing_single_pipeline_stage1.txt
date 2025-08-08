@@ -1,0 +1,4 @@
+=== MÉTRICA DE TEMPO - SINGLE SAMPLE PIPELINE STAGE1 ===
+Data/Hora: 2025-08-08 01:55:08
+Tempo médio: 0.000328 segundos
+Execuções: 10

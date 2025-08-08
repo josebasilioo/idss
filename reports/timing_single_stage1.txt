@@ -1,0 +1,4 @@
+=== MÉTRICA DE TEMPO - SINGLE SAMPLE STAGE1 ===
+Data/Hora: 2025-08-08 01:55:08
+Tempo médio: 0.015547 segundos
+Execuções: 10

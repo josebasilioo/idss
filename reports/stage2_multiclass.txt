@@ -1,0 +1,9 @@
+=== STAGE 2: MULTI-CLASS CLASSIFICATION ===
+Data/Hora: 2025-08-08 01:55:32
+
+Distribuição de predições:
+(D)DOS: 524
+Botnet: 185
+Port Scan: 594
+Unknown: 58107
+Web Attack: 25

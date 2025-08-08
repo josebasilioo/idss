@@ -1,0 +1,5 @@
+=== STAGE 3: ZERO-DAY DETECTION ===
+Data/Hora: 2025-08-08 01:55:32
+
+Distribuição de predições:
+Unknown: 58107

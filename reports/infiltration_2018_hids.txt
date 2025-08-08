@@ -1,0 +1,7 @@
+=== INFILTRAÇÃO 2018 - HIDS PRINCIPAL ===
+Data/Hora: 2025-08-08 01:56:00
+Thresholds: tau_b=-0.0002196942507948895, tau_m=0.98, tau_u=0.0040588613744241275
+
+Distribuição de predições:
+(D)DOS: 10
+Unknown: 127834
