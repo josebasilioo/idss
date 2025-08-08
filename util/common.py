@@ -178,7 +178,7 @@ def plot_fscores(scores, summary, figsize=(10,6), min_recall=0.25, show_threshol
     plt.legend()
     return fig
 
-def plot_confusion_matrix(y_true, y_pred, figsize=(7,7), cmap="Blues", values=[-1, 1], labels=["fraud", "benign"], title="", ax=None):
+def plot_confusion_matrixs(y_true, y_pred, figsize=(7,7), cmap="Blues", values=[-1, 1], labels=["fraud", "benign"], title="", ax=None):
     cm = confusion_matrix(y_true, y_pred, labels=values)
     cm_sum = np.sum(cm, axis=1, keepdims=True)
     cm_perc = cm / cm_sum.astype(float)
@@ -197,6 +197,41 @@ def plot_confusion_matrix(y_true, y_pred, figsize=(7,7), cmap="Blues", values=[-
     sns.heatmap(cm_perc, cmap=cmap, annot=annot, fmt='', ax=ax, vmin=0, vmax=1)
     if title != "":
         ax.set_title(title)
+
+def plot_confusion_matrix(y_true, y_pred, figsize=(7,7), cmap="Blues", values=[-1, 1], labels=["fraud", "benign"], title="", ax=None, print_terminal=True):
+    cm = confusion_matrix(y_true, y_pred, labels=values)
+    cm_sum = np.sum(cm, axis=1, keepdims=True)
+    cm_perc = cm / cm_sum.astype(float)
+    
+    # Preparar anotação para o heatmap
+    annot = np.empty_like(cm).astype(str)
+    nrows, ncols = cm.shape
+    for i in range(nrows):
+        for j in range(ncols):
+            c = cm[i, j]
+            p = cm_perc[i, j]
+            annot[i, j] = '%.1f%%\n%d' % (p * 100, c)
+    
+    cm_perc_df = pd.DataFrame(cm_perc, index=labels, columns=labels)
+    cm_perc_df.index.name = 'Actual'
+    cm_perc_df.columns.name = 'Predicted'
+    
+    # Imprimir no terminal
+    if print_terminal:
+        print("Matriz de Confusão (valores absolutos):")
+        cm_df = pd.DataFrame(cm, index=labels, columns=labels)
+        print(cm_df)
+        print("\nMatriz de Confusão (percentual por linha):")
+        print(cm_perc_df.applymap(lambda x: f"{x*100:.1f}%"))
+    
+    # Plotar o heatmap, se possível
+    if ax is None:
+        fig, ax = plt.subplots(figsize=figsize)
+    sns.heatmap(cm_perc_df, cmap=cmap, annot=annot, fmt='', ax=ax, vmin=0, vmax=1)
+    if title != "":
+        ax.set_title(title)
+    
+    return ax
 
 def optimal_fscore_multi(y_true, score, classes, steps=100, start_step=0.0, stop_step=1.0):
     thresholds = np.arange(0.0, 1.0, 1/steps)
