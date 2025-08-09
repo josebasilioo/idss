@@ -1,11 +1,11 @@
 === INFILTRAÇÃO 2018 - BASELINE RF ===
-Data/Hora: 2025-08-08 01:56:01
+Data/Hora: 2025-08-09 18:16:47
 Threshold: 0.43
 
 Distribuição de predições:
-(D)DOS: 31549
-Botnet: 17493
-Brute Force: 14443
+(D)DOS: 18695
+Botnet: 8503
+Brute Force: 16678
 Port Scan: 32
-Unknown: 54002
-Web Attack: 10325
+Unknown: 73855
+Web Attack: 10081

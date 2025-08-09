@@ -1,5 +1,5 @@
 === STAGE 1: BINARY DETECTION ===
-Data/Hora: 2025-08-08 01:55:20
+Data/Hora: 2025-08-09 18:15:53
 
 Distribuição de predições:
 Attack: 59435

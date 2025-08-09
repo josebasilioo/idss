@@ -1,4 +1,4 @@
 === MÉTRICA DE TEMPO - STAGE 2 MULTI-CLASS ===
-Data/Hora: 2025-08-08 01:55:32
-Tempo médio: 0.020995 segundos
+Data/Hora: 2025-08-09 18:16:23
+Tempo médio: 0.312181 segundos
 Execuções: 3

@@ -1,5 +1,5 @@
 === MÉTRICA DE TEMPO - BALANCED THRESHOLDS ===
-Data/Hora: 2025-08-08 01:55:06
-Tempo médio: 11.763847 segundos
+Data/Hora: 2025-08-09 18:43:58
+Tempo médio: 9.938143 segundos
 Execuções: 3
-Thresholds: tau_b=-0.0002196942507948895, tau_m=0.98, tau_u=0.0040588613744241275
+Thresholds: tau_b=-0.004199663778210894, tau_m=0.98, tau_u=0.007972254569416139
