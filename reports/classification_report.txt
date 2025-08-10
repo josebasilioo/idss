@@ -1,16 +1,17 @@
 === RELATÓRIO DE CLASSIFICAÇÃO ===
-Data/Hora: 2025-08-09 18:16:25
+Data/Hora: 2025-08-09 20:31:41
+Thresholds: tau_b=-0.005, tau_m=0.8, tau_u=0.001
 
               precision    recall  f1-score   support
 
-      (D)DOS     0.0038    0.2414    0.0075       584
-      Benign     0.0000    0.0000    0.0000     56468
-      Botnet     0.0000    0.0000    0.0000       584
- Brute Force     0.0027    0.0240    0.0049       584
-   Port Scan     0.0000    0.0000    0.0000       584
-     Unknown     0.0000    0.0000    0.0000        47
-  Web Attack     0.0038    0.1062    0.0073       584
+      (D)DOS     0.2877    0.9777    0.4445       584
+      Benign     0.9988    0.8921    0.9424     56468
+      Botnet     0.2122    0.9658    0.3479       584
+ Brute Force     0.4045    0.9795    0.5726       584
+   Port Scan     0.9572    0.9949    0.9757       584
+     Unknown     0.0491    0.8936    0.0930        47
+  Web Attack     0.3808    0.9658    0.5462       584
 
-    accuracy                         0.0037     59435
-   macro avg     0.0015    0.0531    0.0028     59435
-weighted avg     0.0001    0.0037    0.0002     59435
+    accuracy                         0.8962     59435
+   macro avg     0.4700    0.9528    0.5603     59435
+weighted avg     0.9710    0.8962    0.9238     59435

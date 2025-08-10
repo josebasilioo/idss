@@ -396,7 +396,7 @@ try:
     
     # 3. OCSVM individual
     with open(os.path.join(models_dir, "stage1_ocsvm_model.p"), "wb") as f:
-        pickle.dump(ocsvm_individual, f)
+        pickle.dump(ocsvm_model, f)
     print("  ✅ stage1_ocsvm_model.p salvo")
     
     # 4. Scaler Stage 1

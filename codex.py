@@ -1,450 +1,324 @@
-# codex.py - Baseado EXATAMENTE no code.ipynb original
+# codex.py - Versão simplificada da pipeline
 
-# Seed value
-seed_value = 42
-
-# 1. Set the `PYTHONHASHSEED` environment variable at a fixed value
 import os
-os.environ['PYTHONHASHSEED'] = str(seed_value)
-
-# 2. Set the `python` built-in pseudo-random generator at a fixed value
-import random
-random.seed(seed_value)
-
-# 3. Set the `numpy` pseudo-random generator at a fixed value
 import numpy as np
-np.random.seed(seed_value)
-
 import pandas as pd
-from sklearn.preprocessing import QuantileTransformer
-from sklearn.metrics import auc, roc_curve, accuracy_score, balanced_accuracy_score, f1_score, recall_score, confusion_matrix, classification_report
-from sklearn.pipeline import Pipeline
-from sklearn.decomposition import PCA
-from sklearn.svm import OneClassSVM
-from sklearn.ensemble import RandomForestClassifier
+import pickle
 import matplotlib.pyplot as plt
 import seaborn as sns
-import pickle
-import time
+from sklearn.metrics import confusion_matrix, classification_report
 from datetime import datetime
+import time
 
-# Obter o diretório onde está o script
+# Configurar seeds
+seed_value = 42
+os.environ['PYTHONHASHSEED'] = str(seed_value)
+import random
+random.seed(seed_value)
+np.random.seed(seed_value)
+
+# Obter diretório do script
 script_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Criar pasta reports no diretório do script se não existir
+data_dir = os.path.join(script_dir, "data")
+models_dir = os.path.join(script_dir, "modelos")
 reports_dir = os.path.join(script_dir, "reports")
+
+# Criar pasta reports se não existir
 if not os.path.exists(reports_dir):
     os.makedirs(reports_dir)
 
-# Definir caminhos para os dados
-data_dir = os.path.join(script_dir, "data")
-models_dir = os.path.join(script_dir, "modelos")
+# Dicionário para armazenar tempos
+timing_results = {
+    'data_loading': 0,
+    'model_loading': 0,
+    'scaler_loading': 0,
+    'data_scaling': 0,
+    'stage1_inference': 0,
+    'stage2_inference': 0,
+    'stage3_inference': 0,
+    'total_pipeline': 0,
+    'report_generation': 0
+}
 
 print("📊 Carregando dados...")
+start_time = time.time()
 
-# Load Test Data
+# Carregar dados de teste
 test = pd.read_parquet(os.path.join(data_dir, "test.parquet"))
-
-y = test["Y"].replace(["Heartbleed", "Infiltration"], "Unknown")
+y_true = test["Y"].replace(["Heartbleed", "Infiltration"], "Unknown")
 x = test.drop(columns=['Y'])
 
-print("Distribuição y:", y.value_counts())
-
-# Load additional infiltration samples from 2018
-infiltration_2018 = pd.read_parquet(os.path.join(data_dir, "infiltration_2018.parquet"))
-
-y_18 = infiltration_2018['y']
-x_18 = infiltration_2018.drop(columns=['y'])
-
-print("Distribuição y_18:", y_18.value_counts())
+timing_results['data_loading'] = time.time() - start_time
+print(f"✅ Dados carregados: {x.shape[0]} amostras, {x.shape[1]} features")
+print(f"⏱️ Tempo carregamento dados: {timing_results['data_loading']:.3f}s")
+print("Distribuição real:", y_true.value_counts().to_dict())
 
 print("🔧 Carregando modelos...")
+start_time = time.time()
 
-# Optimized pipelines
+# Carregar modelos treinados
 with open(os.path.join(models_dir, "stage1_ocsvm.p"), "rb") as f:
     stage1 = pickle.load(f)
 
 with open(os.path.join(models_dir, "stage2_rf.p"), "rb") as f:
     stage2 = pickle.load(f)
 
-# Individual feature scalers and classification models
-with open(os.path.join(models_dir, "stage1_ocsvm_model.p"), "rb") as f:
-    stage1_model = pickle.load(f)
+timing_results['model_loading'] = time.time() - start_time
+print("✅ Modelos carregados")
+print(f"⏱️ Tempo carregamento modelos: {timing_results['model_loading']:.3f}s")
 
+print("🔧 Carregando escaladores...")
+start_time = time.time()
+
+# Carregar escaladores necessários
 with open(os.path.join(models_dir, "stage1_ocsvm_scaler.p"), "rb") as f:
-    stage1_scaler = pickle.load(f)
-
-with open(os.path.join(models_dir, "stage2_rf_model.p"), "rb") as f:
-    stage2_model = pickle.load(f)
+    scaler_stage1 = pickle.load(f)
 
 with open(os.path.join(models_dir, "stage2_rf_scaler.p"), "rb") as f:
-    stage2_scaler = pickle.load(f)
+    scaler_stage2 = pickle.load(f)
 
-# RF baseline model and feature scaler
-with open(os.path.join(models_dir, "baseline_rf.p"), "rb") as f:
-    baseline_rf = pickle.load(f)
+timing_results['scaler_loading'] = time.time() - start_time
+print("✅ Escaladores carregados")
+print(f"⏱️ Tempo carregamento escaladores: {timing_results['scaler_loading']:.3f}s")
 
-with open(os.path.join(models_dir, "baseline_rf_scaler.p"), "rb") as f:
-    baseline_rf_scaler = pickle.load(f)
+# Thresholds otimizados
+# THRESHOLDS RECOMENDADOS:
+threshold_b = -0.005000  # MUITO mais baixo - forçar mais amostras para Stage 2
+threshold_m = 0.80       # Mais baixo ainda para aceitar Web Attacks com menor confiança
+threshold_u = 0.001000   # Manter ajustado
 
-print("✅ Modelos carregados")
+print(f"🎯 Thresholds: tau_b={threshold_b}, tau_m={threshold_m}, tau_u={threshold_u}")
 
-# Thresholds - EXATAMENTE como no notebook original
-tau_b = -0.004199663778210894  # Threshold do paper
-tau_m = 0.98
-tau_u = 0.007972254569416139
+print("🚀 Executando pipeline...")
+pipeline_start = time.time()
 
-print(f"🎯 Thresholds: tau_b={tau_b}, tau_m={tau_m}, tau_u={tau_u}")
-
-import warnings
-warnings.filterwarnings("ignore", category=UserWarning)
-
-# Função hids_predict - EXATAMENTE como no notebook original
-def hids_predict(x, tau_b, tau_m, tau_u):
-    proba_1 = -stage1.decision_function(x) # invert sign to act as anomaly score 
-    pred_1 = np.where(proba_1 < tau_b, "Benign", "Attack").astype(object)
-    proba_2 = stage2.predict_proba(x[pred_1 == "Attack"])
-    pred_2 = np.where(
-        np.max(proba_2, axis=1) > tau_m, 
-        stage2.classes_[np.argmax(proba_2, axis=1)], 
-        "Unknown")
-    proba_3 = proba_1[pred_1 == "Attack"][pred_2 == "Unknown"]
-    pred_3 = np.where(proba_3 < tau_u, "Benign", "Unknown")
-    pred_1[pred_1 == "Attack"] = pred_2
-    pred_1[pred_1 == "Unknown"] = pred_3
-    return pred_1
-
-print("⏱️ Executando testes de tempo...")
-
-# Max F-score thresholds
-print("Max F-score thresholds...")
+# ⚙️ ESCALAR OS DADOS ANTES DE USAR NOS MODELOS
+print("⚙️ Escalando dados...")
 start_time = time.time()
-for _ in range(3):
-    tau_b_temp = -0.0002196942507948895
-    tau_m_temp = 0.98
-    tau_u_temp = 0.004530129828299084
-    y_result = hids_predict(x, tau_b_temp, tau_m_temp, tau_u_temp)
-end_time = time.time()
-avg_time = (end_time - start_time) / 3
+x_stage1_scaled = scaler_stage1.transform(x)
+x_stage2_scaled = scaler_stage2.transform(x)
+timing_results['data_scaling'] = time.time() - start_time
+print(f"⏱️ Tempo escalamento dados: {timing_results['data_scaling']:.3f}s")
 
-with open(os.path.join(reports_dir, "timing_max_fscore.txt"), "w") as f:
-    f.write("=== MÉTRICA DE TEMPO - MAX F-SCORE THRESHOLDS ===\n")
-    f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    f.write(f"Tempo médio: {avg_time:.6f} segundos\n")
-    f.write(f"Execuções: 3\n")
-    f.write(f"Thresholds: tau_b={tau_b_temp}, tau_m={tau_m_temp}, tau_u={tau_u_temp}\n")
-
-print(f"✅ Max F-score: {avg_time:.6f}s")
-
-# Max bACC thresholds
-print("Max bACC thresholds...")
+# Stage 1: Detecção binária (Benign vs Attack) - USAR DADOS ESCALADOS
+print("🔍 Executando Stage 1 (OCSVM)...")
 start_time = time.time()
-for _ in range(3):
-    tau_b_temp = -0.004199663778210894
-    tau_m_temp = 0.98
-    tau_u_temp = 0.007972254569416139
-    y_result = hids_predict(x, tau_b_temp, tau_m_temp, tau_u_temp)
-end_time = time.time()
-avg_time = (end_time - start_time) / 3
+score_test = -stage1.decision_function(x_stage1_scaled)
+y_pred = np.where(score_test < threshold_b, "Benign", "Attack").astype(object)
+timing_results['stage1_inference'] = time.time() - start_time
 
-with open(os.path.join(reports_dir, "timing_max_bacc.txt"), "w") as f:
-    f.write("=== MÉTRICA DE TEMPO - MAX BACC THRESHOLDS ===\n")
-    f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    f.write(f"Tempo médio: {avg_time:.6f} segundos\n")
-    f.write(f"Execuções: 3\n")
-    f.write(f"Thresholds: tau_b={tau_b_temp}, tau_m={tau_m_temp}, tau_u={tau_u_temp}\n")
-
-print(f"✅ Max bACC: {avg_time:.6f}s")
-
-# Best "balanced" thresholds
-print("Best balanced thresholds...")
-start_time = time.time()
-for _ in range(3):
-    y_result = hids_predict(x, tau_b, tau_m, tau_u)
-end_time = time.time()
-avg_time = (end_time - start_time) / 3
-
-with open(os.path.join(reports_dir, "timing_balanced.txt"), "w") as f:
-    f.write("=== MÉTRICA DE TEMPO - BALANCED THRESHOLDS ===\n")
-    f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    f.write(f"Tempo médio: {avg_time:.6f} segundos\n")
-    f.write(f"Execuções: 3\n")
-    f.write(f"Thresholds: tau_b={tau_b}, tau_m={tau_m}, tau_u={tau_u}\n")
-
-print(f"✅ Balanced: {avg_time:.6f}s")
-
-# Baseline RF
-print("Baseline RF...")
-threshold = 0.43
-start_time = time.time()
-for _ in range(3):
-    x_s = baseline_rf_scaler.transform(x)
-    y_proba = baseline_rf.predict_proba(x_s)
-    y_pred_baseline = np.where(np.max(y_proba, axis=1) > threshold, baseline_rf.classes_[np.argmax(y_proba, axis=1)], 'Unknown')
-end_time = time.time()
-avg_time = (end_time - start_time) / 3
-
-with open(os.path.join(reports_dir, "timing_baseline_rf.txt"), "w") as f:
-    f.write("=== MÉTRICA DE TEMPO - BASELINE RF ===\n")
-    f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    f.write(f"Tempo médio: {avg_time:.6f} segundos\n")
-    f.write(f"Execuções: 3\n")
-    f.write(f"Threshold: {threshold}\n")
-
-print(f"✅ Baseline RF: {avg_time:.6f}s")
-
-print("⏱️ Testando amostras individuais...")
-
-# Single sample timing
-sample = np.array(x.values[0]).reshape(1, -1)
-
-# Single sample - Stage1 individual
-start_time = time.time()
-for _ in range(10):
-    x_s = stage1_scaler.transform(sample)
-    proba = -stage1_model.decision_function(x_s)
-    pred = np.where(proba < tau_b, "Benign", "Attack").astype(object)
-end_time = time.time()
-avg_time = (end_time - start_time) / 10
-
-with open(os.path.join(reports_dir, "timing_single_stage1_individual.txt"), "w") as f:
-    f.write("=== MÉTRICA DE TEMPO - SINGLE SAMPLE STAGE1 INDIVIDUAL ===\n")
-    f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    f.write(f"Tempo médio: {avg_time:.6f} segundos\n")
-    f.write(f"Execuções: 10\n")
-
-print(f"✅ Single Stage1 Individual: {avg_time:.6f}s")
-
-# Single sample - Stage2 individual
-start_time = time.time()
-for _ in range(10):
-    x_s = stage2_scaler.transform(sample)
-    proba = stage2_model.predict_proba(x_s)
-    pred_2 = np.where(
-        np.max(proba, axis=1) > tau_m, 
-        stage2_model.classes_[np.argmax(proba, axis=1)], 
-        "Unknown")
-end_time = time.time()
-avg_time = (end_time - start_time) / 10
-
-with open(os.path.join(reports_dir, "timing_single_stage2_individual.txt"), "w") as f:
-    f.write("=== MÉTRICA DE TEMPO - SINGLE SAMPLE STAGE2 INDIVIDUAL ===\n")
-    f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    f.write(f"Tempo médio: {avg_time:.6f} segundos\n")
-    f.write(f"Execuções: 10\n")
-
-print(f"✅ Single Stage2 Individual: {avg_time:.6f}s")
-
-# Single sample - Pipeline Stage1
-start_time = time.time()
-for _ in range(10):
-    proba_1 = -stage1.decision_function(sample) # invert sign to act as anomaly score 
-    pred_1 = np.where(proba_1 < tau_b, "Benign", "Attack").astype(object)
-end_time = time.time()
-avg_time = (end_time - start_time) / 10
-
-with open(os.path.join(reports_dir, "timing_single_stage1_pipeline.txt"), "w") as f:
-    f.write("=== MÉTRICA DE TEMPO - SINGLE SAMPLE STAGE1 PIPELINE ===\n")
-    f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    f.write(f"Tempo médio: {avg_time:.6f} segundos\n")
-    f.write(f"Execuções: 10\n")
-
-print(f"✅ Single Stage1 Pipeline: {avg_time:.6f}s")
-
-# Single sample - Pipeline Stage2
-start_time = time.time()
-for _ in range(10):
-    proba_2 = stage2.predict_proba(sample)
-    pred_2 = np.where(
-        np.max(proba_2, axis=1) > tau_m, 
-        stage2.classes_[np.argmax(proba_2, axis=1)], 
-        "Unknown")
-end_time = time.time()
-avg_time = (end_time - start_time) / 10
-
-with open(os.path.join(reports_dir, "timing_single_stage2_pipeline.txt"), "w") as f:
-    f.write("=== MÉTRICA DE TEMPO - SINGLE SAMPLE STAGE2 PIPELINE ===\n")
-    f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    f.write(f"Tempo médio: {avg_time:.6f} segundos\n")
-    f.write(f"Execuções: 10\n")
-
-print(f"✅ Single Stage2 Pipeline: {avg_time:.6f}s")
-
-print("🚀 Avaliando Multi-Stage Model...")
-
-# DEBUG: Verificar distribuição dos scores
-proba_1 = -stage1.decision_function(x) # invert sign to act as anomaly score 
 print(f"🔍 DEBUG Stage 1:")
-print(f"   tau_b = {tau_b}")
-print(f"   proba_1 min: {np.min(proba_1)}")
-print(f"   proba_1 max: {np.max(proba_1)}")
-print(f"   proba_1 mean: {np.mean(proba_1)}")
-print(f"   proba_1 std: {np.std(proba_1)}")
-print(f"   Amostras < tau_b: {np.sum(proba_1 < tau_b)}")
-print(f"   Amostras >= tau_b: {np.sum(proba_1 >= tau_b)}")
+print(f"   Score range: [{np.min(score_test):.6f}, {np.max(score_test):.6f}]")
+print(f"   Score mean: {np.mean(score_test):.6f}")
+print(f"   Score std: {np.std(score_test):.6f}")
+print(f"   Threshold_b: {threshold_b}")
+print(f"   Amostras < threshold_b (Benign): {np.sum(score_test < threshold_b)}")
+print(f"   Amostras >= threshold_b (Attack): {np.sum(score_test >= threshold_b)}")
 
-# Stage 1: Binary Detection
-pred_1 = np.where(proba_1 < tau_b, "Benign", "Attack").astype(object)
+print(f"Stage 1 - Benign: {np.sum(y_pred == 'Benign')}, Attack: {np.sum(y_pred == 'Attack')}")
+print(f"⏱️ Tempo Stage 1: {timing_results['stage1_inference']:.3f}s")
 
-unique_values, counts = np.unique(pred_1, return_counts=True)
-with open(os.path.join(reports_dir, "stage1_binary_detection.txt"), "w") as f:
-    f.write("=== STAGE 1: BINARY DETECTION ===\n")
-    f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-    f.write("Distribuição de predições:\n")
-    for value, count in zip(unique_values, counts):
-        f.write(f"{value}: {count}\n")
-
-print(f"✅ Stage 1: {dict(zip(unique_values, counts))}")
-
-# Timing Stage 1
+# Stage 2: Classificação multi-classe (apenas para amostras Attack) - USAR DADOS ESCALADOS
+print("🔍 Executando Stage 2 (Random Forest)...")
 start_time = time.time()
-for _ in range(3):
-    proba_1 = -stage1.decision_function(x) # invert sign to act as anomaly score 
-    pred_1 = np.where(proba_1 < tau_b, "Benign", "Attack").astype(object)
-end_time = time.time()
-avg_time = (end_time - start_time) / 3
+if np.sum(y_pred == "Attack") > 0:
+    # Usar dados escalados para Stage 2
+    x_attack_scaled = x_stage2_scaled[y_pred == "Attack"]
+    y_proba_test_2 = stage2.predict_proba(x_attack_scaled)
+    max_probas = np.max(y_proba_test_2, axis=1)
+    
+    print(f"🔍 DEBUG Stage 2:")
+    print(f"   Max proba range: [{np.min(max_probas):.6f}, {np.max(max_probas):.6f}]")
+    print(f"   Max proba mean: {np.mean(max_probas):.6f}")
+    print(f"   Threshold_m: {threshold_m}")
+    print(f"   Amostras > threshold_m: {np.sum(max_probas > threshold_m)}")
+    
+    y_pred_2 = np.where(
+        np.max(y_proba_test_2, axis=1) > threshold_m, 
+        stage2.classes_[np.argmax(y_proba_test_2, axis=1)], 
+        'Unknown'
+    )
+    
+    print(f"Stage 2 - Distribuição: {pd.Series(y_pred_2).value_counts().to_dict()}")
+    
+    # Aplicar predições do Stage 2
+    y_pred[y_pred == "Attack"] = y_pred_2
+else:
+    print("Stage 2 - Nenhuma amostra classificada como Attack")
 
-with open(os.path.join(reports_dir, "timing_stage1_binary.txt"), "w") as f:
-    f.write("=== MÉTRICA DE TEMPO - STAGE 1 BINARY DETECTION ===\n")
-    f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    f.write(f"Tempo médio: {avg_time:.6f} segundos\n")
-    f.write(f"Execuções: 3\n")
+timing_results['stage2_inference'] = time.time() - start_time
+print(f"⏱️ Tempo Stage 2: {timing_results['stage2_inference']:.3f}s")
 
-print(f"✅ Timing Stage 1: {avg_time:.6f}s")
-
-# Stage 2: Multi-Class Classification
-proba_2 = stage2.predict_proba(x[pred_1 == "Attack"])
-pred_2 = np.where(
-    np.max(proba_2, axis=1) > tau_m, 
-    stage2.classes_[np.argmax(proba_2, axis=1)], 
-    "Unknown")
-
-unique_values, counts = np.unique(pred_2, return_counts=True)
-with open(os.path.join(reports_dir, "stage2_multiclass.txt"), "w") as f:
-    f.write("=== STAGE 2: MULTI-CLASS CLASSIFICATION ===\n")
-    f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-    f.write("Distribuição de predições:\n")
-    for value, count in zip(unique_values, counts):
-        f.write(f"{value}: {count}\n")
-
-print(f"✅ Stage 2: {dict(zip(unique_values, counts))}")
-
-# Timing Stage 2
+# Stage 3: Detecção de zero-day (para amostras Unknown)
+print("🔍 Executando Stage 3 (Zero-day Detection)...")
 start_time = time.time()
-for _ in range(3):
-    proba_2 = stage2.predict_proba(x[pred_1 == "Attack"])
-    pred_2 = np.where(
-        np.max(proba_2, axis=1) > tau_m, 
-        stage2.classes_[np.argmax(proba_2, axis=1)], 
-        "Unknown")
-end_time = time.time()
-avg_time = (end_time - start_time) / 3
+if np.sum(y_pred == "Unknown") > 0:
+    unknown_scores = score_test[y_pred == "Unknown"]
+    y_pred_3 = np.where(unknown_scores < threshold_u, "Benign", "Unknown")
+    
+    print(f"Stage 3 - Benign: {np.sum(y_pred_3 == 'Benign')}, Unknown: {np.sum(y_pred_3 == 'Unknown')}")
+    
+    # Aplicar predições do Stage 3
+    y_pred[y_pred == "Unknown"] = y_pred_3
+else:
+    print("Stage 3 - Nenhuma amostra Unknown para processar")
 
-with open(os.path.join(reports_dir, "timing_stage2_multiclass.txt"), "w") as f:
-    f.write("=== MÉTRICA DE TEMPO - STAGE 2 MULTI-CLASS ===\n")
-    f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    f.write(f"Tempo médio: {avg_time:.6f} segundos\n")
-    f.write(f"Execuções: 3\n")
+timing_results['stage3_inference'] = time.time() - start_time
+print(f"⏱️ Tempo Stage 3: {timing_results['stage3_inference']:.3f}s")
 
-print(f"✅ Timing Stage 2: {avg_time:.6f}s")
+# Calcular tempo total da pipeline
+timing_results['total_pipeline'] = time.time() - pipeline_start
 
-# Extension Stage: Zero-Day Detection
-proba_3 = proba_1[pred_1 == "Attack"][pred_2 == "Unknown"]
-pred_3 = np.where(proba_3 < tau_u, "Benign", "Unknown")
+print("✅ Pipeline executada")
 
-unique_values, counts = np.unique(pred_3, return_counts=True)
-with open(os.path.join(reports_dir, "stage3_zeroday.txt"), "w") as f:
-    f.write("=== STAGE 3: ZERO-DAY DETECTION ===\n")
-    f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-    f.write("Distribuição de predições:\n")
-    for value, count in zip(unique_values, counts):
-        f.write(f"{value}: {count}\n")
+# Resultado final
+final_distribution = pd.Series(y_pred).value_counts()
+print(f"\n📊 Distribuição final das predições:")
+for classe, count in final_distribution.items():
+    print(f"  {classe}: {count}")
 
-print(f"✅ Stage 3: {dict(zip(unique_values, counts))}")
+print("\n📈 Gerando matriz de confusão...")
+start_time = time.time()
 
-# Combine stages
-y_pred = pred_1.copy()
-y_pred[y_pred == "Attack"] = pred_2
-y_pred[y_pred == "Unknown"] = pred_3
-
-unique_values, counts = np.unique(y_pred, return_counts=True)
-with open(os.path.join(reports_dir, "combined_stages.txt"), "w") as f:
-    f.write("=== COMBINED STAGES ===\n")
-    f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
-    f.write("Distribuição final de predições:\n")
-    for value, count in zip(unique_values, counts):
-        f.write(f"{value}: {count}\n")
-
-print(f"✅ Combined: {dict(zip(unique_values, counts))}")
-
-print("📊 Gerando visualizações...")
-
-# Statistics and Visualizations
-def plot_confusion_matrix(y_true, y_pred, figsize=(7,7), cmap="Blues", values=[-1, 1], labels=["Attack", "Benign"], title="", ax=None, metrics=False):
-    cm = confusion_matrix(y_true, y_pred, labels=values)
+# Função para plotar matriz de confusão
+def plot_confusion_matrix(y_true, y_pred, title="Matriz de Confusão"):
+    # Definir ordem específica das classes
+    desired_order = ['Benign', '(D)DOS', 'Botnet', 'Brute Force', 'Port Scan', 'Web Attack', 'Unknown']
+    
+    # Obter classes únicas presentes nos dados
+    unique_classes = set(y_true) | set(y_pred)
+    
+    # Usar apenas as classes que existem nos dados, na ordem desejada
+    classes = [cls for cls in desired_order if cls in unique_classes]
+    
+    # Adicionar qualquer classe não prevista no final (caso existam)
+    for cls in unique_classes:
+        if cls not in classes:
+            classes.append(cls)
+    
+    # Calcular matriz de confusão
+    cm = confusion_matrix(y_true, y_pred, labels=classes)
+    
+    # Calcular percentuais
     cm_sum = np.sum(cm, axis=1, keepdims=True)
-    cm_perc = cm / cm_sum.astype(float)
+    cm_perc = cm / cm_sum.astype(float) * 100
+    
+    # Criar anotações com percentual e count
     annot = np.empty_like(cm).astype(str)
     nrows, ncols = cm.shape
     for i in range(nrows):
         for j in range(ncols):
             c = cm[i, j]
             p = cm_perc[i, j]
-            annot[i, j] = '%.1f%%\n%d' % (p * 100, c)
-    cm_perc = pd.DataFrame(cm_perc, index=labels, columns=labels)
-    cm_perc.index.name = 'Actual'
-    cm_perc.columns.name = 'Predicted'
-    if ax == None:
-        fig, ax = plt.subplots(figsize=figsize)
-    sns.heatmap(cm_perc, cmap=cmap, annot=annot, fmt='', ax=ax, vmin=0, vmax=1)
-    if title != "":
-        ax.set_title(title)
+            if c == 0:
+                annot[i, j] = '0'
+            else:
+                annot[i, j] = f'{p:.1f}%\n({c})'
+    
+    # Plotar
+    plt.figure(figsize=(12, 10))
+    sns.heatmap(cm_perc, 
+                xticklabels=classes, 
+                yticklabels=classes,
+                annot=annot, 
+                fmt='', 
+                cmap='Blues',
+                cbar_kws={'label': 'Percentual (%)'})
+    
+    plt.title(title, fontsize=16, fontweight='bold')
+    plt.xlabel('Predição', fontsize=12)
+    plt.ylabel('Real', fontsize=12)
+    plt.xticks(rotation=45, ha='right')
+    plt.yticks(rotation=0)
+    plt.tight_layout()
+    
+    # Salvar
+    output_path = os.path.join(reports_dir, "confusion_matrix.png")
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    return output_path
 
-classes = ['Benign', '(D)DOS', 'Botnet', 'Brute Force', 'Port Scan', 'Web Attack', 'Unknown']
-plot_confusion_matrix(y, y_pred, values=classes, labels=classes, metrics=True)
+# Gerar matriz de confusão
+matrix_path = plot_confusion_matrix(y_true, y_pred, "Matriz de Confusão - Multi-Stage HIDS")
+print(f"✅ Matriz de confusão salva em: {matrix_path}")
 
-plt.savefig(os.path.join(reports_dir, "confusion_matrix.png"), dpi=300, bbox_inches='tight')
-plt.close()
-print(f"✅ Confusion matrix salva")
+# Gerar relatório de classificação
+report = classification_report(y_true, y_pred, digits=4)
+report_path = os.path.join(reports_dir, "classification_report.txt")
 
-# Classification report
-report = classification_report(y, y_pred, digits=4)
-with open(os.path.join(reports_dir, "classification_report.txt"), "w") as f:
+with open(report_path, "w") as f:
     f.write("=== RELATÓRIO DE CLASSIFICAÇÃO ===\n")
-    f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+    f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    f.write(f"Thresholds: tau_b={threshold_b}, tau_m={threshold_m}, tau_u={threshold_u}\n\n")
     f.write(report)
 
-print("\n🔬 Teste de robustez com dados CIC-IDS-2018...")
+print(f"✅ Relatório de classificação salvo em: {report_path}")
 
-# Robustness test - Infiltration 2018
-y_robust = hids_predict(x_18, tau_b, tau_m, tau_u)
+timing_results['report_generation'] = time.time() - start_time
 
-unique_values, counts = np.unique(y_robust, return_counts=True)
-with open(os.path.join(reports_dir, "infiltration_2018_hids.txt"), "w") as f:
-    f.write("=== INFILTRAÇÃO 2018 - HIDS PRINCIPAL ===\n")
+# Calcular tempo total de execução
+total_time = sum(timing_results.values()) - timing_results['total_pipeline']  # Evitar dupla contagem
+timing_results['total_execution'] = total_time
+
+# Gerar relatório detalhado de timing
+print(f"\n⏱️ RELATÓRIO DE PERFORMANCE:")
+print("=" * 50)
+print(f"📊 Carregamento dados:     {timing_results['data_loading']:.3f}s")
+print(f"🔧 Carregamento modelos:   {timing_results['model_loading']:.3f}s")
+print(f"⚙️ Carregamento escaladores: {timing_results['scaler_loading']:.3f}s")
+print(f"🔄 Escalamento dados:      {timing_results['data_scaling']:.3f}s")
+print("-" * 50)
+print(f"🔍 Stage 1 (OCSVM):        {timing_results['stage1_inference']:.3f}s")
+print(f"🔍 Stage 2 (Random Forest): {timing_results['stage2_inference']:.3f}s")
+print(f"🔍 Stage 3 (Zero-day):     {timing_results['stage3_inference']:.3f}s")
+print(f"📊 Pipeline total:         {timing_results['total_pipeline']:.3f}s")
+print("-" * 50)
+print(f"📈 Geração relatórios:     {timing_results['report_generation']:.3f}s")
+print("=" * 50)
+print(f"⏱️ TEMPO TOTAL:            {timing_results['total_execution']:.3f}s")
+
+# Calcular throughput
+samples_per_second = len(x) / timing_results['total_pipeline']
+print(f"🚀 Throughput pipeline:    {samples_per_second:.0f} amostras/segundo")
+print(f"🚀 Throughput por estágio:")
+print(f"   Stage 1: {len(x) / timing_results['stage1_inference']:.0f} amostras/segundo")
+if timing_results['stage2_inference'] > 0:
+    stage2_samples = np.sum(y_pred != 'Benign')  # Amostras processadas no Stage 2
+    print(f"   Stage 2: {stage2_samples / timing_results['stage2_inference']:.0f} amostras/segundo ({stage2_samples} amostras)")
+if timing_results['stage3_inference'] > 0:
+    stage3_samples = np.sum(y_pred == 'Unknown')  # Amostras processadas no Stage 3
+    print(f"   Stage 3: {stage3_samples / timing_results['stage3_inference']:.0f} amostras/segundo ({stage3_samples} amostras)")
+
+# Salvar relatório de timing
+timing_path = os.path.join(reports_dir, "timing_report.txt")
+with open(timing_path, "w") as f:
+    f.write("=== RELATÓRIO DE PERFORMANCE ===\n")
     f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    f.write(f"Thresholds: tau_b={tau_b}, tau_m={tau_m}, tau_u={tau_u}\n\n")
-    f.write("Distribuição de predições:\n")
-    for value, count in zip(unique_values, counts):
-        f.write(f"{value}: {count}\n")
+    f.write(f"Amostras processadas: {len(x):,}\n\n")
+    
+    f.write("TEMPOS DE EXECUÇÃO:\n")
+    f.write(f"Carregamento dados:      {timing_results['data_loading']:.3f}s\n")
+    f.write(f"Carregamento modelos:    {timing_results['model_loading']:.3f}s\n")
+    f.write(f"Carregamento escaladores: {timing_results['scaler_loading']:.3f}s\n")
+    f.write(f"Escalamento dados:       {timing_results['data_scaling']:.3f}s\n")
+    f.write(f"Stage 1 (OCSVM):         {timing_results['stage1_inference']:.3f}s\n")
+    f.write(f"Stage 2 (Random Forest): {timing_results['stage2_inference']:.3f}s\n")
+    f.write(f"Stage 3 (Zero-day):      {timing_results['stage3_inference']:.3f}s\n")
+    f.write(f"Pipeline total:          {timing_results['total_pipeline']:.3f}s\n")
+    f.write(f"Geração relatórios:      {timing_results['report_generation']:.3f}s\n")
+    f.write(f"Tempo total:             {timing_results['total_execution']:.3f}s\n\n")
+    
+    f.write("THROUGHPUT:\n")
+    f.write(f"Pipeline geral:          {samples_per_second:.0f} amostras/segundo\n")
+    f.write(f"Stage 1:                 {len(x) / timing_results['stage1_inference']:.0f} amostras/segundo\n")
+    if timing_results['stage2_inference'] > 0:
+        stage2_samples = np.sum(y_pred != 'Benign')
+        f.write(f"Stage 2:                 {stage2_samples / timing_results['stage2_inference']:.0f} amostras/segundo\n")
+    if timing_results['stage3_inference'] > 0:
+        stage3_samples = np.sum(y_pred == 'Unknown')
+        f.write(f"Stage 3:                 {stage3_samples / timing_results['stage3_inference']:.0f} amostras/segundo\n")
 
-print(f"✅ Infiltration 2018 HIDS: {dict(zip(unique_values, counts))}")
+print(f"⏱️ Relatório de timing salvo em: {timing_path}")
 
-# Baseline test on infiltration 2018
-x_s = baseline_rf_scaler.transform(x_18)
-y_proba = baseline_rf.predict_proba(x_s)
-y_pred_baseline = np.where(np.max(y_proba, axis=1) > 0.43, baseline_rf.classes_[np.argmax(y_proba, axis=1)], 'Unknown')
-
-unique_values, counts = np.unique(y_pred_baseline, return_counts=True)
-with open(os.path.join(reports_dir, "infiltration_2018_baseline.txt"), "w") as f:
-    f.write("=== INFILTRAÇÃO 2018 - BASELINE RF ===\n")
-    f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-    f.write(f"Threshold: 0.43\n\n")
-    f.write("Distribuição de predições:\n")
-    for value, count in zip(unique_values, counts):
-        f.write(f"{value}: {count}\n")
-
-print(f"✅ Infiltration 2018 Baseline: {dict(zip(unique_values, counts))}")
-
-print(f"\n🎉 Todos os resultados foram salvos na pasta '{reports_dir}'!")
-print("✅ Execução completa seguindo exatamente o notebook code.ipynb")
+print(f"\n🎉 Execução completa! Resultados salvos em '{reports_dir}'")

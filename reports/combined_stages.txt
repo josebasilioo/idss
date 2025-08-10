@@ -1,9 +1,0 @@
-=== COMBINED STAGES ===
-Data/Hora: 2025-08-09 18:16:23
-
-Distribuição final de predições:
-(D)DOS: 37173
-Botnet: 616
-Brute Force: 5171
-Unknown: 122
-Web Attack: 16353

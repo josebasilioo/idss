@@ -1,14 +1,14 @@
 === MÉTRICAS DE PERFORMANCE ===
 
 TEMPOS DE TREINAMENTO:
-OCSVM: 188.93s
-Random Forest: 0.54s
-Baseline RF: 0.49s
+OCSVM: 166.99s
+Random Forest: 0.48s
+Baseline RF: 0.42s
 
 TEMPOS DE INFERÊNCIA (por amostra):
-OCSVM: 0.2372ms
-Random Forest: 0.0120ms
-Baseline RF: 0.0133ms
+OCSVM: 0.2357ms
+Random Forest: 0.0109ms
+Baseline RF: 0.0110ms
 
 STAGE 1 (OCSVM):
 Métricas:   metric   value  threshold precision  recall       FPR

@@ -1,0 +1,21 @@
+=== RELATÓRIO DE PERFORMANCE ===
+Data/Hora: 2025-08-09 20:31:41
+Amostras processadas: 59,435
+
+TEMPOS DE EXECUÇÃO:
+Carregamento dados:      0.159s
+Carregamento modelos:    0.252s
+Carregamento escaladores: 0.004s
+Escalamento dados:       1.683s
+Stage 1 (OCSVM):         10.221s
+Stage 2 (Random Forest): 0.351s
+Stage 3 (Zero-day):      0.006s
+Pipeline total:          12.266s
+Geração relatórios:      2.490s
+Tempo total:             15.166s
+
+THROUGHPUT:
+Pipeline geral:          4846 amostras/segundo
+Stage 1:                 5815 amostras/segundo
+Stage 2:                 25666 amostras/segundo
+Stage 3:                 132211 amostras/segundo
