@@ -1,0 +1,19 @@
+RELATÓRIO DE OTIMIZAÇÃO - RF
+==================================================
+Data: 2025-08-10 01:01:26
+Trials executados: 100
+Tempo de otimização: 0.2 minutos
+Melhor score: 1.0000
+
+MELHORES PARÂMETROS:
+n_estimators: 106
+max_samples: 0.9852142919229748
+max_features: 0.39279757672456206
+min_samples_leaf: 3
+
+TOP 5 TRIALS:
+1. Score: 1.0000 | Params: {'n_estimators': 106, 'max_samples': 0.9852142919229748, 'max_features': 0.39279757672456206, 'min_samples_leaf': 3}
+2. Score: 1.0000 | Params: {'n_estimators': 73, 'max_samples': 0.7467983561008608, 'max_features': 0.12323344486727979, 'min_samples_leaf': 5}
+3. Score: 1.0000 | Params: {'n_estimators': 140, 'max_samples': 0.9124217733388136, 'max_features': 0.10823379771832098, 'min_samples_leaf': 5}
+4. Score: 1.0000 | Params: {'n_estimators': 175, 'max_samples': 0.7637017332034828, 'max_features': 0.17272998688284025, 'min_samples_leaf': 1}
+5. Score: 1.0000 | Params: {'n_estimators': 95, 'max_samples': 0.8574269294896714, 'max_features': 0.2727780074568463, 'min_samples_leaf': 2}

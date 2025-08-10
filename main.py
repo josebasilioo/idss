@@ -20,7 +20,7 @@ np.random.seed(seed_value)
 # Obter diretório do script
 script_dir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(script_dir, "data")
-models_dir = os.path.join(script_dir, "modelos")
+models_dir = os.path.join(script_dir, "models")
 reports_dir = os.path.join(script_dir, "reports")
 
 # Criar pasta reports se não existir
@@ -81,11 +81,11 @@ timing_results['scaler_loading'] = time.time() - start_time
 print("✅ Escaladores carregados")
 print(f"⏱️ Tempo carregamento escaladores: {timing_results['scaler_loading']:.3f}s")
 
-# Thresholds otimizados
+# Thresholds otimizados - AJUSTE BASEADO NOS NOVOS PARÂMETROS
 # THRESHOLDS RECOMENDADOS:
-threshold_b = -0.005000  # MUITO mais baixo - forçar mais amostras para Stage 2
-threshold_m = 0.80       # Mais baixo ainda para aceitar Web Attacks com menor confiança
-threshold_u = 0.001000   # Manter ajustado
+threshold_b = 0.005
+threshold_m = 0.7
+threshold_u = 0.012000
 
 print(f"🎯 Thresholds: tau_b={threshold_b}, tau_m={threshold_m}, tau_u={threshold_u}")
 
@@ -127,11 +127,24 @@ if np.sum(y_pred == "Attack") > 0:
     y_proba_test_2 = stage2.predict_proba(x_attack_scaled)
     max_probas = np.max(y_proba_test_2, axis=1)
     
+    # DEBUG: Mostrar as classes do modelo
     print(f"🔍 DEBUG Stage 2:")
+    print(f"   Classes do modelo: {stage2.classes_}")
+    print(f"   Número de classes: {len(stage2.classes_)}")
+    
+    # DEBUG: Mostrar distribuição das probabilidades por classe
+    for i, classe in enumerate(stage2.classes_):
+        proba_classe = y_proba_test_2[:, i]
+        print(f"   {classe}: min={np.min(proba_classe):.4f}, max={np.max(proba_classe):.4f}, mean={np.mean(proba_classe):.4f}")
+    
     print(f"   Max proba range: [{np.min(max_probas):.6f}, {np.max(max_probas):.6f}]")
     print(f"   Max proba mean: {np.mean(max_probas):.6f}")
     print(f"   Threshold_m: {threshold_m}")
     print(f"   Amostras > threshold_m: {np.sum(max_probas > threshold_m)}")
+    
+    # DEBUG: Mostrar predições antes do threshold
+    pred_classes = stage2.classes_[np.argmax(y_proba_test_2, axis=1)]
+    print(f"   Predições antes threshold: {pd.Series(pred_classes).value_counts().to_dict()}")
     
     y_pred_2 = np.where(
         np.max(y_proba_test_2, axis=1) > threshold_m, 
@@ -182,8 +195,8 @@ start_time = time.time()
 
 # Função para plotar matriz de confusão
 def plot_confusion_matrix(y_true, y_pred, title="Matriz de Confusão"):
-    # Definir ordem específica das classes
-    desired_order = ['Benign', '(D)DOS', 'Botnet', 'Brute Force', 'Port Scan', 'Web Attack', 'Unknown']
+    # Definir ordem específica das classes - CICIDS2018 completo
+    desired_order = ['Benign', '(D)DOS', 'Botnet', 'Brute Force', 'Web Attack', 'Unknown']
     
     # Obter classes únicas presentes nos dados
     unique_classes = set(y_true) | set(y_pred)

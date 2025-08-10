@@ -25,7 +25,7 @@ np.random.seed(seed_value)
 # Obter diretório do script
 script_dir = os.path.dirname(os.path.abspath(__file__))
 data_dir = os.path.join(script_dir, "data")
-models_dir = os.path.join(script_dir, "modelos")
+models_dir = os.path.join(script_dir, "models")
 reports_dir = os.path.join(script_dir, "reports")
 
 if not os.path.exists(reports_dir):

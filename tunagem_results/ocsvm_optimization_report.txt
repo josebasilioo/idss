@@ -1,0 +1,19 @@
+RELATÓRIO DE OTIMIZAÇÃO - OCSVM
+==================================================
+Data: 2025-08-10 01:00:45
+Trials executados: 50
+Tempo de otimização: 0.2 minutos
+Melhor score: 0.9624
+
+MELHORES PARÂMETROS:
+pca__n_components: 66
+ocsvm__kernel: rbf
+ocsvm__gamma: 0.001101767345549512
+ocsvm__nu: 4.869252853070146e-05
+
+TOP 5 TRIALS:
+1. Score: 0.9624 | Params: {'pca__n_components': 66, 'ocsvm__kernel': 'rbf', 'ocsvm__gamma': 0.001101767345549512, 'ocsvm__nu': 4.869252853070146e-05}
+2. Score: 0.9620 | Params: {'pca__n_components': 54, 'ocsvm__kernel': 'rbf', 'ocsvm__gamma': 0.0013902820766418093, 'ocsvm__nu': 3.715341287393177e-05}
+3. Score: 0.9620 | Params: {'pca__n_components': 54, 'ocsvm__kernel': 'rbf', 'ocsvm__gamma': 0.001430759657426291, 'ocsvm__nu': 2.4331669519792012e-05}
+4. Score: 0.9619 | Params: {'pca__n_components': 55, 'ocsvm__kernel': 'rbf', 'ocsvm__gamma': 0.0014592699481862303, 'ocsvm__nu': 2.312653597797639e-05}
+5. Score: 0.9616 | Params: {'pca__n_components': 63, 'ocsvm__kernel': 'rbf', 'ocsvm__gamma': 0.0017358783943855164, 'ocsvm__nu': 2.3188400902216395e-05}

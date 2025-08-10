@@ -17,7 +17,7 @@ def load_data(clean_dir, sample_size=1948, train_size=100000, val_size=100000, t
         
     attack_type = df_malicious.Label.copy()
 
-    # Map label to attack type
+    # Map label to attack type - CICIDS2018 completo
     df_malicious.Label = df_malicious.Label.map({
         'DoS Hulk':'(D)DOS', 
         'PortScan':'Port Scan', 
@@ -34,6 +34,9 @@ def load_data(clean_dir, sample_size=1948, train_size=100000, val_size=100000, t
         'Infiltration': 'Infiltration',
         'Heartbleed': 'Heartbleed'
     })
+
+    # Substituir NaN por 'Unknown' para ataques não mapeados
+    df_malicious.Label = df_malicious.Label.fillna('Unknown')
 
 
     # Split benign data in train, validation, test split
@@ -61,7 +64,7 @@ def load_data(clean_dir, sample_size=1948, train_size=100000, val_size=100000, t
             "#Test": x_benign_test.shape[0],
             '%Test': 100,
         }
-        for attack_class in np.unique(y_multi):
+        for attack_class in np.unique(y_multi.dropna()):
             attack_impl_train_count = attack_type_train[y_malicious_train == attack_class].value_counts()
             attack_impl_test_count = attack_type_test[y_malicious_test == attack_class].value_counts()
             for attack_impl in np.unique(np.concatenate([attack_impl_test_count.keys(), attack_impl_train_count.keys()])):
@@ -103,7 +106,7 @@ def sub_sample_train_test(df, attack_type_label, sample_size, train_size=0.7, ra
     train_idx = np.empty((0,), dtype=int)
     test_idx = np.empty((0,), dtype=int)
 
-    for attack_type in np.unique(df.Label):
+    for attack_type in np.unique(df.Label.dropna()):
         attack_type_count = np.count_nonzero(df.Label == attack_type)
         if attack_type_count < sample_size:
             # Use attack class for testing only, not enough samples for training

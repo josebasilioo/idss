@@ -36,6 +36,7 @@ import pathlib
 import pickle
 import matplotlib.pyplot as plt
 import time  # Adicionado para medir tempo
+import sys
 
 print("🚀 Iniciando treinamento dos modelos...")
 
@@ -72,14 +73,13 @@ val = {
 test = {}
 
 # Definir diretório dos dados limpos
-clean_dir = "/home/CIN/jbsn3/multi-stage-hierarchical-ids/ids-dataset-cleaning/cicids2017/clean"
+clean_dir = "/home/CIN/jbsn3/multi-stage-hierarchical-ids/ids-dataset-cleaning/cicids2018/clean"
 
 print("📊 Carregando dados Stage 1 (OCSVM)...")
-
 # Load Data Stage 1 - OCSVM (10k samples)
 train["ocsvm"]["x"], train["ocsvm"]["y"], x_benign_val, y_benign_val, _, _, x_malicious_train, y_malicious_train, _, _, _, _, _ = util.load_data(
     clean_dir, 
-    sample_size=1948, 
+    sample_size=10000, 
     train_size=10000, 
     val_size=129485, 
     test_size=56468
@@ -91,7 +91,7 @@ val["ocsvm"]["y"] = np.concatenate((y_benign_val, np.full(y_malicious_train.shap
 # Load Data Stage 1 - AE (100k samples)
 train["ae"]["x"], train["ae"]["y"], x_benign_val, y_benign_val, _, _, x_malicious_train, y_malicious_train, _, _, _, _, _ = util.load_data(
     clean_dir, 
-    sample_size=1948, 
+    sample_size=100000, 
     val_size=129485, 
     test_size=56468
 )
@@ -101,22 +101,33 @@ val["ae"]["y"] = np.concatenate((y_benign_val, np.full(y_malicious_train.shape[0
 
 print("📊 Carregando dados Stage 2...")
 
-# Load Data Stage 2
-n_benign_val = 1500
+# Load Data Stage 2 - MELHORIAS PONTUAIS
+n_benign_val = 800
 
+# Agora chamar load_data com sample_size seguro
 x_benign_train, _, _, _, x_benign_test, y_benign_test, x_malicious_train, y_malicious_train, x_malicious_test, y_malicious_test, attack_type_train, _, _ = util.load_data(
     clean_dir, 
-    sample_size=1948, 
+    sample_size=10000,  # USAR VALOR SEGURO
     train_size=n_benign_val, 
     val_size=6815, 
     test_size=56468
 )
 
+attack_series = pd.Series(attack_type_train)
+counts = attack_series.value_counts()
+keep_labels = counts[counts > 1].index
+
+mask = attack_series.isin(keep_labels).to_numpy()
+x_malicious_train = x_malicious_train[mask]
+y_malicious_train = y_malicious_train[mask]
+attack_type_train = attack_type_train[mask]
+
+# SOLUÇÃO ELEGANTE - Usar attack_type_train para máxima diversidade
 train["stage2"]["x"], x_val, train["stage2"]["y"], y_val = train_test_split(
     x_malicious_train, 
     y_malicious_train, 
-    stratify=attack_type_train, 
-    test_size=1500, 
+    stratify=attack_type_train,  # 🎯 GENIAL! Garante todos os subtipos
+    test_size=800,              # Maior conjunto de validação
     random_state=42, 
     shuffle=True
 )
@@ -173,10 +184,10 @@ def create_ocsvm(params):
 
 # Treinar OCSVM com 100k dados (como no AE original)
 params_ocsvm = {
-    "pca__n_components": 56,
+    "pca__n_components": 66,
     "ocsvm__kernel": "rbf",
-    "ocsvm__gamma": 0.0632653906314333,
-    "ocsvm__nu": 0.0002316646233151
+    "ocsvm__gamma": 0.001101767345549512,
+    "ocsvm__nu": 4.869252853070146e-05
 }
 
 ocsvm_model = create_ocsvm(params_ocsvm)
@@ -201,12 +212,17 @@ print("  🔹 Treinando Random Forest...")
 def create_rf(params):
     return RandomForestClassifier(random_state=42).set_params(**params)
 
-# Treinar Random Forest
+# MELHORIA 3: Random Forest com class_weight e mais árvores
+from sklearn.utils.class_weight import compute_class_weight
+
+class_weights = compute_class_weight('balanced', classes=np.unique(train["stage2"]["y"]), y=train["stage2"]["y"])
+class_weight_dict = dict(zip(np.unique(train["stage2"]["y"]), class_weights))
+
 params_rf = {
-    "n_estimators": 97,
-    "max_samples": 0.9034128710297624,
-    "max_features": 0.1751204590963604,
-    "min_samples_leaf": 1
+    "n_estimators": 106,
+    "max_samples": 0.9852142919229748,
+    "max_features": 0.39279757672456206,
+    "min_samples_leaf": 3
 }
 
 rf_model = create_rf(params_rf)
@@ -273,11 +289,25 @@ y_pred_val_rf = np.where(np.max(y_proba_val_rf, axis=1) > f_best["f1_weighted_th
 score_test = -ocsvm_model.decision_function(test['ae_s'])
 y_proba_test_2 = rf_model.predict_proba(test['stage2_s'])
 
-# Simular predição completa da pipeline
-threshold_b = -0.004199663778210894  # Threshold do paper
-threshold_m = 0.98
-threshold_u = 0.007972254569416139
+# Calcular thresholds otimizados baseados nos dados CICIDS2018
+from sklearn.metrics import roc_curve
 
+# 1. Threshold para Stage 1 (OCSVM)
+score_val_ocsvm = -ocsvm_model.decision_function(val['ae']['x_s'])
+fpr, tpr, thresholds_ocsvm = roc_curve(val['ae']['y'], score_val_ocsvm, pos_label=-1)
+# Escolher threshold que maximize TPR - FPR
+optimal_idx = np.argmax(tpr - fpr)
+
+threshold_b = thresholds_ocsvm[optimal_idx]
+threshold_m = f_best["f1_weighted_threshold"]
+threshold_u = np.percentile(score_val_ocsvm, 95)
+
+print(f"🎯 Thresholds otimizados:")
+print(f"   threshold_b (Stage 1): {threshold_b}")
+print(f"   threshold_m (Stage 2): {threshold_m}")  
+print(f"   threshold_u (Stage 3): {threshold_u}")
+
+# Simular predição completa da pipeline
 y_pred = np.where(score_test < threshold_b, "Benign", "Fraud").astype(object)
 y_pred_2 = np.where(np.max(y_proba_test_2[y_pred == "Fraud"], axis=1) > threshold_m, 
                    train["stage2"]["y_n"].columns[np.argmax(y_proba_test_2[y_pred == "Fraud"], axis=1)], 'Unknown')
@@ -293,7 +323,7 @@ def generate_complete_confusion_graphs(score_test, y_proba_test_2, threshold_b, 
     fig.subplots_adjust(hspace=0.3)
     fig.subplots_adjust(wspace=0.3)
     
-    classes = ['Benign', '(D)DOS', 'Botnet', 'Brute Force', 'Port Scan', 'Web Attack', 'Unknown']
+    classes = ['Benign', '(D)DOS', 'Botnet', 'Brute Force', 'Web Attack', 'Unknown']
     
     # Stage 1 - Binary
     y_pred_1_n = np.where(score_test < threshold_b, 1, -1)
@@ -338,7 +368,7 @@ except Exception as e:
     print(f"  ⚠️ Erro ao gerar gráfico completo: {e}")
     # Fallback para confusion matrix simples
     plt.figure(figsize=(10, 8))
-    classes = ['Benign', '(D)DOS', 'Botnet', 'Brute Force', 'Port Scan', 'Web Attack', 'Unknown']
+    classes = ['Benign', '(D)DOS', 'Botnet', 'Brute Force', 'Web Attack', 'Unknown']
     try:
         util.plot_confusion_matrix(test['y_unknown'], y_pred, values=classes, labels=classes)
         plt.title('Confusion Matrix - Pipeline Completa')
@@ -461,3 +491,13 @@ print("  • confusion_matrix_complete_comparison.png - Comparação completa (6
 print("  • performance_metrics.txt - Métricas de performance detalhadas")
 
 print("\n✅ Todos os modelos necessários para codex.py foram criados!")
+
+# TESTE RÁPIDO - Adicionar no codex.py após carregar o modelo
+print("🔍 DIAGNÓSTICO DO MODELO:")
+print(f"   Classes disponíveis: {rf_model.classes_}")
+print(f"   Número de classes: {len(rf_model.classes_)}")
+
+# Se só tem uma classe, o problema está no treinamento!
+if len(rf_model.classes_) == 1:
+    print("❌ PROBLEMA CRÍTICO: Modelo só tem uma classe!")
+    print("   Necessário retreinar o modelo com dados balanceados")

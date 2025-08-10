@@ -1,34 +1,11 @@
 === MÉTRICAS DE PERFORMANCE ===
 
 TEMPOS DE TREINAMENTO:
-OCSVM: 166.99s
-Random Forest: 0.48s
-Baseline RF: 0.42s
+OCSVM: 1.68s
+Random Forest: 3.50s
+Baseline RF: 1.13s
 
 TEMPOS DE INFERÊNCIA (por amostra):
-OCSVM: 0.2357ms
-Random Forest: 0.0109ms
-Baseline RF: 0.0110ms
-
-STAGE 1 (OCSVM):
-Métricas:   metric   value  threshold precision  recall       FPR
-0     F1  0.4221   0.000415    0.4733  0.3809  0.022327
-1     F2  0.4134  -0.000880    0.1817  0.6069  0.143955
-2     F3  0.5175  -0.003107    0.1079   0.895  0.389682
-3     F4  0.6358  -0.003829    0.0995  0.9585  0.456647
-4     F5  0.7205  -0.004126    0.0958  0.9748  0.484628
-5     F6  0.7814  -0.004200    0.0947  0.9784  0.492420
-6     F7  0.8247  -0.004236    0.0942  0.9798  0.496374
-7     F8  0.8563  -0.004363    0.0924  0.9833  0.508437
-8     F9  0.8799  -0.004363    0.0924  0.9833  0.508437
-
-STAGE 2 (Random Forest):
-Threshold ótimo F1: 0.98
-F1 Score: 0.9710
-Accuracy: 0.9710
-
-PIPELINE COMPLETA (Test):
-F1 Macro: 0.8074
-F1 Weighted: 0.9836
-Accuracy: 0.9796
-Balanced Accuracy: 0.9395
+OCSVM: 0.0145ms
+Random Forest: 0.0120ms
+Baseline RF: 0.0107ms

@@ -1,0 +1,20 @@
+RELATÓRIO DE OTIMIZAÇÃO - AE
+==================================================
+Data: 2025-08-10 01:24:13
+Trials executados: 30
+Tempo de otimização: 22.3 minutos
+Melhor score: 0.0124
+
+MELHORES PARÂMETROS:
+hidden_dim: 64
+encoding_dim: 64
+learning_rate: 0.009583206773012897
+batch_size: 64
+l2_reg: 0.0008433355893235707
+
+TOP 5 TRIALS:
+1. Score: 0.0124 | Params: {'hidden_dim': 64, 'encoding_dim': 64, 'learning_rate': 0.009583206773012897, 'batch_size': 64, 'l2_reg': 0.0008433355893235707}
+2. Score: 0.0098 | Params: {'hidden_dim': 32, 'encoding_dim': 64, 'learning_rate': 0.009742628737880451, 'batch_size': 64, 'l2_reg': 0.0010998304278664233}
+3. Score: 0.0096 | Params: {'hidden_dim': 32, 'encoding_dim': 16, 'learning_rate': 0.009250274952289146, 'batch_size': 64, 'l2_reg': 0.001154712555763796}
+4. Score: 0.0089 | Params: {'hidden_dim': 32, 'encoding_dim': 16, 'learning_rate': 0.00897656970912115, 'batch_size': 64, 'l2_reg': 0.001063062489454107}
+5. Score: 0.0076 | Params: {'hidden_dim': 32, 'encoding_dim': 16, 'learning_rate': 0.00411201442355204, 'batch_size': 64, 'l2_reg': 0.0024552420522177053}

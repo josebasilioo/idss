@@ -1,0 +1,37 @@
+RESUMO GERAL DA TUNAGEM
+==================================================
+Data: 2025-08-10 01:24:13
+Tempo total: 24.3 minutos
+Modelos otimizados: 3
+
+OCSVM:
+  Melhor score: 0.9624
+  Trials: 50
+  Tempo: 0.2min
+  Parâmetros:
+    pca__n_components: 66
+    ocsvm__kernel: rbf
+    ocsvm__gamma: 0.001101767345549512
+    ocsvm__nu: 4.869252853070146e-05
+
+RF:
+  Melhor score: 1.0000
+  Trials: 100
+  Tempo: 0.2min
+  Parâmetros:
+    n_estimators: 106
+    max_samples: 0.9852142919229748
+    max_features: 0.39279757672456206
+    min_samples_leaf: 3
+
+AE:
+  Melhor score: 0.0124
+  Trials: 30
+  Tempo: 22.3min
+  Parâmetros:
+    hidden_dim: 64
+    encoding_dim: 64
+    learning_rate: 0.009583206773012897
+    batch_size: 64
+    l2_reg: 0.0008433355893235707
+
